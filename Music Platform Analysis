@@ -1,0 +1,128 @@
+-- Q1 Calculate how many customers per company (e.g., pineapple, apple, avocado) are there in the database.
+SELECT
+	COUNT(CASE WHEN email LIKE '%avocado%' THEN user_id END) AS Avocado,
+    COUNT(CASE WHEN email LIKE '%pineapple%' THEN user_id END) AS Pineapple,
+    COUNT(CASE WHEN email LIKE '%apple%' THEN user_id END) AS Apple
+FROM Users
+-- Answer: Avocado: 689 users, Pineapple: 668 users, Apple: 1311.
+
+
+
+-- Q2:Calculate the average duration of songs listened to by users in each genre. Which genre has the highest average song duration?
+SELECT
+	genre,
+    AVG(duration_seconds) AS average_time
+FROM
+	ListeningHistory AS lh
+    LEFT JOIN Songs ON lh.song_id = Songs.song_id
+GROUP BY 1
+ORDER BY 2 DESC
+-- Answer: The genre with highest average song duration is Samba.
+
+
+
+-- Q3: How much times did the top 5 users engage with the streaming platform?
+SELECT
+	user_id AS users,
+    SUM(duration_seconds) AS total_time_spent
+FROM
+	ListeningHistory
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 5
+
+-- Answer: 4490s, 3740s, 3636s, 3441s, 3388s.
+
+
+
+-- Q4: Analyze the distribution of songs released by year. Are there any particular years that have a higher concentration of song releases?
+SELECT
+	release_year,
+    COUNT(song_id) AS number_of_songs
+FROM
+	Songs
+GROUP BY 1
+ORDER BY 2 DESC
+
+-- Answer: 2010 has the highest number of songs released.
+
+
+
+-- Q5: Which weekdays and months of the year do listeners use the platform the most? Are there particular days of the week when users listen to music the most?
+-- first, let's find out the total listen time by month.
+SELECT
+	MONTH(listen_date) AS the_month,
+    SUM(duration_seconds) AS total_listen_time
+FROM 
+	ListeningHistory
+GROUP BY 1
+ORDER BY 2 DESC
+
+-- Answer: August has the most listens.
+
+-- Now, let's find out the total listen time by weekdays
+SELECT
+	DAYOFWEEK(listen_date) AS the_day,
+    SUM(duration_seconds) AS total_listen_time
+FROM 
+	ListeningHistory
+GROUP BY 1
+ORDER BY 2 DESC
+
+-- Answer: Thursday has the most listens.
+
+
+
+-- Q6: Identify users who have stopped using the platform (churned). Who are the newest drop-out?
+-- Churn: Customers who have not used the platform in the past three months (e.g., customers who have not used the platform since 2024-01-01).
+SELECT
+	user_id AS users,
+    MAX(listen_date) AS last_time_active
+FROM
+	ListeningHistory
+GROUP BY 1
+HAVING 
+	MAX(listen_date) < "2024-01-01 00:00:00"
+ORDER BY 2 DESC
+
+-- Answer: User 202 dropped out most recently.
+
+
+
+-- Q7: Identify the top 5 most popular artists in terms of the number of listens across all users. Then, find the total number of days that users listen to these top artists.
+-- first, let's find out who are the top 5 most popular artists:
+SELECT
+	artist,
+    COUNT(lh.song_id) AS number_of_listen
+FROM 
+	ListeningHistory AS lh
+    LEFT JOIN Songs ON lh.song_id = Songs.song_id
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 5
+
+-- Top 5 artists are artists 176, 160, 26, 131, 138.
+
+-- then, let's use Common Table Expression to store the top 5 artists. Then, find the total number of days that users listen to these top artists.
+WITH top_artists AS (SELECT
+	artist,
+    COUNT(lh.song_id) AS number_of_listen,
+    COUNT(DISTINCT lh.user_id) AS number_of_users
+FROM 
+	ListeningHistory AS lh
+    LEFT JOIN Songs ON lh.song_id = Songs.song_id
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 5
+)
+
+SELECT 
+    ta.artist,
+    COUNT(DISTINCT listen_date) AS total_listen_days
+FROM 
+	ListeningHistory AS lh
+    INNER JOIN Songs ON lh.song_id = Songs.song_id
+    INNER JOIN top_artists AS ta ON ta.artist = Songs.artist
+GROUP BY 1
+
+-- Answer: Users listen 63 days to Artist 131, 58 days to artist 138, 66 days to artist 160, 70 days to artisr 176, and 65 days to artist 26.
